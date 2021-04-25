@@ -1,0 +1,66 @@
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+int main()
+{
+int ret;
+//创建套结字
+int sock_fd = socket(AF_INET,SOCK_STREAM,0);
+if(sock_fd < 0)
+{
+perror("create socket fail:");
+return -1;
+}
+struct sockaddr_in client_addr;
+client_addr.sin_family = AF_INET; //IPV4 协议簇
+client_addr.sin_port = htons(8888);//将端口号值转换成网络字节序
+client_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+ret = bind(sock_fd,(struct sockaddr*)&client_addr,sizeof(client_addr));
+//bind 函数 参数 1:创建成功的套结字
+//bind 函数 参数 2:(struct sockaddr*)&server_addr 强制转换 IPV4 套接字结构体变量定
+义 server_addr 为通用地址结构体变量
+// 作用:设置套结字的 IP 地址和端口号，之前创建的套接字是没有和任何地
+址绑定在一起的
+//bind 函数 参数 3:套结字地址结构长度
+if(ret < 0)
+{
+perror("bind fail:");
+return -1;
+}//绑定不是必须的，客户端的绑定一般交给系统（隐式绑定）
+//连接服务器,所以先封装一个服务器的套结字地址结构
+struct sockaddr_in saddr;
+saddr.sin_family = AF_INET;
+saddr.sin_port = htons(10000);
+saddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+ret = connect(sock_fd,(struct sockaddr*)&saddr,sizeof(saddr));
+if(ret < 0)
+{
+perror("connect fail:");
+return -1;
+}
+char sendbuf[1024],recvbuf[1024],*p;
+//循环发送请求，接收服务器对请求的回应
+while(1)
+{
+//从键盘输入发送的字符串
+memset(sendbuf,0,sizeof(sendbuf));
+fgets(sendbuf,1024,stdin);
+p = strchr(sendbuf,'\n');//从字符串中查找第一次出现的字符（参数 2）
+if(p)
+{
+*p = '\0';
+}
+//发送消息
+ret = write(sock_fd,sendbuf,1024);
+if(strncmp(sendbuf,"quit",4) == 0)
+break;
+//等待服务器的回应
+memset(recvbuf,0,sizeof(recvbuf));
+ret = read(sock_fd,recvbuf,1024);
+printf("recvbuf:%s\n",recvbuf);
+}
+close(sock_fd);
+return 0;
